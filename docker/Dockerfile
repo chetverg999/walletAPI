@@ -4,7 +4,7 @@ RUN mkdir /taskAPI
 
 WORKDIR /taskAPI
 
-COPY ./ ./
+COPY .. ./
 
 RUN go env -w GO111MODULE=on
 
