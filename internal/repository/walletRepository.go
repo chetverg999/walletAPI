@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/shopspring/decimal"
-	"log"
 	"net/http"
 	"taskAPI/internal/model"
 )
@@ -55,9 +54,7 @@ func (r *WalletRepository) GetWalletId(c *gin.Context, walletId uuid.UUID) {
 	err := sqlxDB.Get(&wallet, "SELECT * FROM wallets WHERE walletid = $1", walletId)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Неверный ID"})
-
-		return
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "Неверный ID"})
 	}
 
 	c.JSON(http.StatusOK, wallet)
@@ -67,7 +64,7 @@ func (r *WalletRepository) Deposit(c *gin.Context, walletId uuid.UUID, amount de
 	tx, err := r.getDB(c).Beginx()
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"failed to connect to DB": err.Error()})
 	}
 
 	defer func() {
@@ -80,21 +77,19 @@ func (r *WalletRepository) Deposit(c *gin.Context, walletId uuid.UUID, amount de
 	err = tx.Get(&currentAmount, `SELECT amount FROM wallets WHERE walletid = $1 FOR UPDATE`, walletId)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "Неверный ID"})
 	}
 
 	_, err = tx.Exec(`UPDATE wallets SET amount = $1 WHERE walletid = $2`, currentAmount.Add(amount), walletId)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "Неверный ID"})
 	}
 
-	log.Printf("Committing transaction for walletId: %s", walletId)
 	err = tx.Commit()
 
 	if err != nil {
-		log.Printf("Error committing transaction: %v", err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	}
 }
 
@@ -102,7 +97,7 @@ func (r *WalletRepository) Withdraw(c *gin.Context, walletId uuid.UUID, amount d
 	tx, err := r.getDB(c).Beginx()
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"failed to connect to DB": err.Error()})
 	}
 
 	defer func() {
@@ -115,18 +110,22 @@ func (r *WalletRepository) Withdraw(c *gin.Context, walletId uuid.UUID, amount d
 	err = tx.Get(&currentAmount, `SELECT amount FROM wallets WHERE walletid = $1 FOR UPDATE`, walletId)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "Неверный ID"})
+	}
+
+	if currentAmount.LessThan(amount) {
+		c.AbortWithStatusJSON(http.StatusNotAcceptable, gin.H{"error": "Недостаточный баланс"})
 	}
 
 	_, err = tx.Exec(`UPDATE wallets SET amount = $1 WHERE walletid = $2`, currentAmount.Sub(amount), walletId)
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	}
 
 	err = tx.Commit()
 
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	}
 }
