@@ -5,6 +5,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
+	"log"
 	"net/http"
 	"taskAPI/internal/model"
 )
@@ -61,6 +63,70 @@ func (r *WalletRepository) GetWalletId(c *gin.Context, walletId uuid.UUID) {
 	c.JSON(http.StatusOK, wallet)
 }
 
-//запрос на увеличение баланса
+func (r *WalletRepository) Deposit(c *gin.Context, walletId uuid.UUID, amount decimal.Decimal) {
+	tx, err := r.getDB(c).Beginx()
 
-//запрос на уменьшение баланса
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var currentAmount decimal.Decimal
+	err = tx.Get(&currentAmount, `SELECT amount FROM wallets WHERE walletid = $1 FOR UPDATE`, walletId)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	_, err = tx.Exec(`UPDATE wallets SET amount = $1 WHERE walletid = $2`, currentAmount.Add(amount), walletId)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	log.Printf("Committing transaction for walletId: %s", walletId)
+	err = tx.Commit()
+
+	if err != nil {
+		log.Printf("Error committing transaction: %v", err)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
+
+func (r *WalletRepository) Withdraw(c *gin.Context, walletId uuid.UUID, amount decimal.Decimal) {
+	tx, err := r.getDB(c).Beginx()
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var currentAmount decimal.Decimal
+	err = tx.Get(&currentAmount, `SELECT amount FROM wallets WHERE walletid = $1 FOR UPDATE`, walletId)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	_, err = tx.Exec(`UPDATE wallets SET amount = $1 WHERE walletid = $2`, currentAmount.Sub(amount), walletId)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	err = tx.Commit()
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}

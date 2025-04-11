@@ -7,7 +7,7 @@ import (
 )
 
 type WalletValidator struct {
-	wallet     model.Wallet
+	wallet     model.WalletRequest
 	repository *repository.WalletRepository
 }
 
@@ -15,7 +15,7 @@ func NewWalletValidator(repository *repository.WalletRepository) *WalletValidato
 	return &WalletValidator{repository: repository}
 }
 
-func (w *WalletValidator) Validate(wallet model.Wallet) error {
+func (w *WalletValidator) Validate(wallet model.WalletRequest) error {
 	w.wallet = wallet
 
 	return validator.New().Struct(wallet)

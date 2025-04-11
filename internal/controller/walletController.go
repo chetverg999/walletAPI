@@ -18,15 +18,20 @@ func NewWalletController(ctx context.Context) *WalletController {
 }
 
 func (w *WalletController) Post(c *gin.Context) {
-	var wallet model.Wallet
+	var wallet model.WalletRequest
 
 	if err := c.BindJSON(&wallet); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-
-		return
 	}
 
-	w.service.Post(c, wallet)
+	switch wallet.OperationType {
+	case "DEPOSIT":
+		w.service.DepositPost(c, wallet)
+	case "WITHDRAW":
+		w.service.WithdrawPost(c, wallet)
+	default:
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "unknown operation type"})
+	}
 }
 
 func (w *WalletController) Get(c *gin.Context) {

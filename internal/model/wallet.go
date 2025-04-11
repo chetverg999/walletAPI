@@ -6,12 +6,12 @@ import (
 )
 
 type WalletRequest struct {
-	WalletId      uuid.UUID       `json:"walletid"`
+	WalletId      uuid.UUID       `json:"walletId"`
 	Amount        decimal.Decimal `json:"amount"`
-	OperationType string          `json:"operation_type" validate:"required,oneof=DEPOSIT WITHDRAW"`
+	OperationType string          `json:"operationType" validate:"required,oneof=DEPOSIT WITHDRAW"`
 }
 
 type Wallet struct {
-	WalletId uuid.UUID       `db:"walletid" json:"walletid"`
+	WalletId uuid.UUID       `db:"walletid" json:"walletId"`
 	Amount   decimal.Decimal `db:"amount" json:"amount"`
 }

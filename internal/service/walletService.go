@@ -22,21 +22,23 @@ func NewWalletService(ctx context.Context) *WalletService {
 	return &WalletService{repository: repository, ctx: ctx, validator: validator.NewWalletValidator(repository)}
 }
 
-func (w *WalletService) Post(c *gin.Context, wallet model.Wallet) {
+func (w *WalletService) DepositPost(c *gin.Context, wallet model.WalletRequest) {
 	w.ValidateRequest(c, wallet)
+	w.repository.Deposit(c, wallet.WalletId, wallet.Amount)
+}
 
-	//увеличение то вызываем метод репозитори на увеличение
-
-	//вызываем метод репозитори на уменьшение баланса
+func (w *WalletService) WithdrawPost(c *gin.Context, wallet model.WalletRequest) {
+	w.ValidateRequest(c, wallet)
+	w.repository.Withdraw(c, wallet.WalletId, wallet.Amount)
 }
 
 func (w *WalletService) GetAll(c *gin.Context) {
-	//заполняем и возвращаем массив со значениями
 	w.repository.GetAll(c)
 }
 
 func (w *WalletService) GetWalletID(c *gin.Context) {
 	walletID, err := uuid.Parse(c.Param("WALLET_UUID"))
+
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid wallet ID"})
 
@@ -46,9 +48,8 @@ func (w *WalletService) GetWalletID(c *gin.Context) {
 	w.repository.GetWalletId(c, walletID)
 }
 
-func (w *WalletService) ValidateRequest(c *gin.Context, wallet model.Wallet) {
+func (w *WalletService) ValidateRequest(c *gin.Context, wallet model.WalletRequest) {
 	if err := w.validator.Validate(wallet); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
 	}
 }
